@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<window xmlns="http://schemas.haulmont.com/cuba/window.xsd"
+        caption="msg://caption"
+        class="com.company.globaleventsdemo.web.screens.Screen1"
+        messagesPack="com.company.globaleventsdemo.web.screens">
+    <dialogMode height="600"
+                width="800"/>
+    <layout>
+        <vbox spacing="true">
+            <button id="sendBtn"
+                    caption="Send test event"
+                    invoke="sendEvent"/>
+            <label id="receivedLab"
+                   value="Received events: 0"/>
+        </vbox>
+    </layout>
+</window>

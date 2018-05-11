@@ -1,0 +1,387 @@
+
+buildscript {
+    ext.cubaVersion = '6.8.7'
+    repositories {
+        
+        mavenLocal()
+        maven {
+            url 'https://repo.cuba-platform.com/content/groups/work'
+            credentials {
+                username(rootProject.hasProperty('repoUser') ? rootProject['repoUser'] : 'cuba')
+                password(rootProject.hasProperty('repoPass') ? rootProject['repoPass'] : 'cuba123')
+            }
+        }
+        
+    }
+    dependencies {
+        classpath "com.haulmont.gradle:cuba-plugin:$cubaVersion"
+    }
+}
+
+def modulePrefix = 'app'
+
+def globalModule = project(":${modulePrefix}-global")
+def coreModule = project(":${modulePrefix}-core")
+def webModule = project(":${modulePrefix}-web")
+
+def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
+
+
+apply(plugin: 'idea')
+apply(plugin: 'cuba')
+
+cuba {
+    artifact {
+        group = 'com.company.globaleventsdemo'
+        version = '0.1'
+        isSnapshot = true
+    }
+    tomcat {
+        dir = "$project.rootDir/deploy/tomcat"
+    }
+    ide {
+        vcs = 'Git'
+    }
+}
+
+dependencies {
+    appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.1-SNAPSHOT")
+
+}
+
+def postgres = 'org.postgresql:postgresql:9.4.1212'
+
+configure([globalModule, coreModule, webModule]) {
+    apply(plugin: 'java')
+    apply(plugin: 'maven')
+    apply(plugin: 'idea')
+    apply(plugin: 'cuba')
+
+    dependencies {
+        testCompile('junit:junit:4.12')
+    }
+
+    task sourceJar(type: Jar) {
+        from file('src')
+        classifier = 'sources'
+    }
+
+    artifacts {
+        archives sourceJar
+    }
+}
+
+configure(globalModule) {
+    task enhance(type: CubaEnhancing)
+
+    
+}
+
+configure(coreModule) {
+
+    configurations {
+        jdbc
+        dbscripts
+    }
+
+    dependencies {
+        compile(globalModule)
+        provided(servletApi)
+        jdbc(postgres)
+        testRuntime(postgres)
+
+    }
+
+    task cleanConf(description: 'Cleans up conf directory') {
+        doLast {
+            def dir = new File(cuba.tomcat.dir, "/conf/${modulePrefix}-core")
+            if (dir.isDirectory()) {
+                ant.delete(includeemptydirs: true) {
+                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
+                }
+            }
+        }
+    }
+
+    task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
+        appName = "${modulePrefix}-core"
+        appJars(modulePrefix + '-global', modulePrefix + '-core')
+    }
+
+    task createDb(dependsOn: assembleDbScripts, description: 'Creates local database', type: CubaDbCreation) {
+        dbms = 'postgres'
+        host = 'localhost'
+        dbName = 'glevtdemo'
+        dbUser = 'cuba'
+        dbPassword = 'cuba'
+    }
+
+    task updateDb(dependsOn: assembleDbScripts, description: 'Updates local database', type: CubaDbUpdate) {
+        dbms = 'postgres'
+        host = 'localhost'
+        dbName = 'glevtdemo'
+        dbUser = 'cuba'
+        dbPassword = 'cuba'
+    }
+}
+    
+configure(webModule) {
+    configurations {
+        webcontent
+    }
+
+    dependencies {
+        provided(servletApi)
+        compile(globalModule)
+
+    }
+    
+    task webArchive(type: Zip) {
+        from file("$buildDir/web")
+        from file('web')
+        classifier = 'web'
+    }
+
+    artifacts {
+        archives webArchive
+    }
+
+    task deployConf(type: Copy) {
+        from file('src')
+        include "com/company/globaleventsdemo/**"
+        into "$cuba.tomcat.dir/conf/${modulePrefix}"
+    }
+
+    task clearMessagesCache(type: CubaClearMessagesCache) {
+        appName = "${modulePrefix}"
+    }
+    deployConf.dependsOn clearMessagesCache
+
+    task cleanConf(description: 'Cleans up conf directory') {
+        doLast {
+            def dir = new File(cuba.tomcat.dir, "/conf/${modulePrefix}")
+            if (dir.isDirectory()) {
+                ant.delete(includeemptydirs: true) {
+                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
+                }
+            }
+        }
+    }
+
+    task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-web')
+    }
+}
+
+
+
+
+
+task undeploy(type: Delete, dependsOn: ":${modulePrefix}-web:cleanConf") {
+    delete("$cuba.tomcat.dir/shared")
+    delete("$cuba.tomcat.dir/webapps/${modulePrefix}-core")
+    delete("$cuba.tomcat.dir/webapps/${modulePrefix}")
+}
+
+task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefix}-web:deploy"], description: 'Redeploys applications and restarts local Tomcat') {
+    doLast {
+        ant.waitfor(maxwait: 6, maxwaitunit: 'second', checkevery: 2, checkeveryunit: 'second') {
+            not {
+                socket(server: 'localhost', port: '8787')
+            }
+        }
+        start.execute()
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.3.1'
+}
+
+/* ============= Cluster setup =============== */
+
+def tomcat1Dir = cuba.tomcat.dir + '1'
+def tomcat2Dir = cuba.tomcat.dir + '2'
+def tomcat3Dir = cuba.tomcat.dir + '3'
+def tomcat4Dir = cuba.tomcat.dir + '4'
+def tomcat5Dir = cuba.tomcat.dir + '5'
+
+task dropTomcat1(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat1Dir
+    listeningPort = 18787
+}
+
+task dropTomcat2(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat2Dir
+    listeningPort = 28787
+}
+
+task dropTomcat3(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat3Dir
+    listeningPort = 38787
+}
+
+task dropTomcat4(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat4Dir
+    listeningPort = 48787
+}
+
+task dropTomcat5(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat5Dir
+    listeningPort = 58787
+}
+
+task setupTomcat1(dependsOn: dropTomcat1, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat1Dir
+}
+
+task setupTomcat2(dependsOn: dropTomcat2, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat2Dir
+}
+
+task setupTomcat3(dependsOn: dropTomcat3, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat3Dir
+}
+
+task setupTomcat4(dependsOn: dropTomcat4, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat4Dir
+}
+
+task setupTomcat5(dependsOn: dropTomcat5, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat5Dir
+}
+
+task startTomcat1(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat1Dir
+}
+
+task startTomcat2(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat2Dir
+}
+
+task startTomcat3(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat3Dir
+}
+
+task startTomcat4(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat4Dir
+}
+
+task startTomcat5(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat5Dir
+}
+
+task startCluster(dependsOn: [startTomcat1, startTomcat2, startTomcat3, startTomcat4, startTomcat5])
+
+configure(coreModule) {
+    task deploy1(dependsOn: [assemble, cleanConf, setupTomcat1], type: CubaDeployment) {
+        tomcatRootDir = tomcat1Dir
+        appName = "${modulePrefix}-core"
+        appJars(modulePrefix + '-global', modulePrefix + '-core')
+    }
+    task deploy2(dependsOn: [assemble, cleanConf, setupTomcat2], type: CubaDeployment) {
+        tomcatRootDir = tomcat2Dir
+        appName = "${modulePrefix}-core"
+        appJars(modulePrefix + '-global', modulePrefix + '-core')
+    }
+}
+
+configure(webModule) {
+    task deploy3(dependsOn: [assemble, cleanConf, setupTomcat3], type: CubaDeployment) {
+        tomcatRootDir = tomcat3Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-web')
+    }
+    task deploy4(dependsOn: [assemble, cleanConf, setupTomcat4], type: CubaDeployment) {
+        tomcatRootDir = tomcat4Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-web')
+    }
+    task deploy5(dependsOn: [assemble, cleanConf, setupTomcat5], type: CubaDeployment) {
+        tomcatRootDir = tomcat5Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-web')
+    }
+}
+
+task prepareCluster(dependsOn: [globalModule.assemble, coreModule.assemble, webModule.assemble,
+                                coreModule.deploy1, coreModule.deploy2, webModule.deploy3, webModule.deploy4, webModule.deploy5]) {
+    doLast {
+        setupCoreConfigFiles(tomcat1Dir, 1)
+        setupCoreConfigFiles(tomcat2Dir, 2)
+        setupWebConfigFiles(tomcat3Dir, 3)
+        setupWebConfigFiles(tomcat4Dir, 4)
+        setupWebConfigFiles(tomcat5Dir, 5)
+
+        delete("$rootDir/deploy/logs")
+    }
+}
+
+void setupWebConfigFiles(String rootDir, int n) {
+    replacePorts(rootDir, n)
+
+    File webConfDir = new File("${rootDir}/conf/app")
+    webConfDir.mkdirs()
+    def appPropFile = new File(webConfDir, 'local.app.properties').getAbsolutePath()
+    ant.propertyfile(file: appPropFile) {
+        entry(key: 'cuba.useLocalServiceInvocation', value: 'false')
+        // web3 -> core1, web4 & web5 -> core2
+        entry(key: 'cuba.connectionUrlList', value: "http://localhost:${n == 3 ? 1 : 2}8080/app-core")
+    }
+    ant.replace(file: appPropFile, token: '\\:', value: ':')
+
+    setupLogging(rootDir, n)
+}
+
+void setupCoreConfigFiles(String rootDir, int n) {
+    replacePorts(rootDir, n)
+
+    File coreConfDir = new File("${rootDir}/conf/app-core")
+    coreConfDir.mkdirs()
+    def appPropFile = new File(coreConfDir, 'local.app.properties').getAbsolutePath()
+    ant.propertyfile(file: appPropFile) {
+        entry(key: 'cuba.webPort', value: "${n}8080")
+        entry(key: 'cuba.cluster.enabled', value: 'true')
+
+        entry(key: 'cuba.cluster.jgroupsConfig', value: 'jgroups_tcp.xml')
+        entry(key: 'jgroups.bind_addr', value: '127.0.0.1')
+        entry(key: 'jgroups.bind_port', value: "780${n}")
+        entry(key: 'jgroups.tcpping.initial_hosts', value: '127.0.0.1[7801],127.0.0.1[7802]')
+    }
+    ant.replace(file: appPropFile, token: '\\:', value: ':')
+
+    // Remote JMX
+    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
+            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -Djava.rmi.server.hostname=localhost -Dcom.sun.management.jmxremote.port=${n}7777 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false\"")
+
+    // JGroups
+    copy {
+        from "${rootProject.rootDir}/etc/jgroups_tcp.xml"
+        into "${rootDir}/conf/app-core"
+    }
+//    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
+//            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -Djgroups.bind_port=780${n} -Djgroups.tcpping.initial_hosts=localhost[7801],localhost[7802]\"")
+
+    setupLogging(rootDir, n)
+}
+
+void replacePorts(String rootDir, int n) {
+    ant.replace(file: "${rootDir}/conf/server.xml", token: '8005', value: "${n}8005")
+    ant.replace(file: "${rootDir}/conf/server.xml", token: '8009', value: "${n}8009")
+    ant.replace(file: "${rootDir}/conf/server.xml", token: '8080', value: "${n}8080")
+    ant.replace(file: "${rootDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
+    ant.replace(file: "${rootDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
+}
+
+def setupLogging(String rootDir, int n) {
+    copy {
+        from "${rootProject.rootDir}/etc/logback.xml"
+        into "${rootDir}/conf"
+    }
+    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
+            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -DcubaBlock=b${n}\"")
+
+    ant.chmod(file: "${rootDir}/bin/setenv.sh", perm: 'a+x')
+}
