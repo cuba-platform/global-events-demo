@@ -10,8 +10,11 @@
             <button id="sendBtn"
                     caption="Send test event"
                     invoke="sendEvent"/>
-            <label id="receivedLab"
-                   value="Received events: 0"/>
+            <hbox spacing="true">
+                <label value="Received events:"/>
+                <label id="receivedLab"
+                       value="0"/>
+            </hbox>
         </vbox>
     </layout>
 </window>

@@ -31,7 +31,7 @@ public class Screen1 extends AbstractWindow {
     @EventListener
     public void onUiNotificationEvent(UiNotificationEvent event) {
         log.info("Received {}", event);
-        receivedLab.setValue("Received events: " + count.incrementAndGet());
+        receivedLab.setValue(count.incrementAndGet());
     }
 
     // screens do not receive non-UI events!

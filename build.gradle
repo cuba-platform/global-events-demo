@@ -107,6 +107,10 @@ configure(coreModule) {
     task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
         appName = "${modulePrefix}-core"
         appJars(modulePrefix + '-global', modulePrefix + '-core')
+        doLast {
+            enableRemoteJmx(cuba.tomcat.dir, 0)
+            fixFileAttr(cuba.tomcat.dir)
+        }
     }
 
     task createDb(dependsOn: assembleDbScripts, description: 'Creates local database', type: CubaDbCreation) {
@@ -175,10 +179,6 @@ configure(webModule) {
     }
 }
 
-
-
-
-
 task undeploy(type: Delete, dependsOn: ":${modulePrefix}-web:cleanConf") {
     delete("$cuba.tomcat.dir/shared")
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}-core")
@@ -198,6 +198,45 @@ task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefi
 
 task wrapper(type: Wrapper) {
     gradleVersion = '4.3.1'
+}
+
+configure(project(":${modulePrefix}-ui-test")) {
+
+    apply(plugin: 'java')
+    apply(plugin: 'groovy')
+    apply(plugin: 'idea')
+    apply(plugin: 'cuba')
+
+    sourceSets {
+        test {
+            groovy {
+                srcDirs = ['test']
+            }
+        }
+    }
+
+    dependencies {
+        testCompile('junit:junit:4.12')
+        testCompile('org.codehaus.groovy:groovy-all:2.4.12')
+
+        //the library for the UI testing
+        testCompile('com.haulmont.masquerade:masquerade-web:1.0.5')
+
+        //the library provides an ability to access web-services, JMX and etc.
+        testCompile('com.haulmont.masquerade:masquerade-connector:1.0.0')
+
+        // enable logging
+        testCompile('org.slf4j:slf4j-simple:1.7.25')
+
+        testRuntime(postgres)
+    }
+
+    task localTest(type: Test, dependsOn: testClasses) {
+        include('**/LocalInteractionUiTest.class')
+        if (System.getProperty('webdriver.chrome.driver')) {
+            systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
+        }
+    }
 }
 
 /* ============= Cluster setup =============== */
@@ -319,26 +358,29 @@ task prepareCluster(dependsOn: [globalModule.assemble, coreModule.assemble, webM
     }
 }
 
-void setupWebConfigFiles(String rootDir, int n) {
-    replacePorts(rootDir, n)
+void setupWebConfigFiles(String tomcatDir, int n) {
+    replacePorts(tomcatDir, n)
 
-    File webConfDir = new File("${rootDir}/conf/app")
+    File webConfDir = new File("${tomcatDir}/conf/app")
     webConfDir.mkdirs()
     def appPropFile = new File(webConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
+        entry(key: 'cuba.webPort', value: "${n}8080")
         entry(key: 'cuba.useLocalServiceInvocation', value: 'false')
         // web3 -> core1, web4 & web5 -> core2
         entry(key: 'cuba.connectionUrlList', value: "http://localhost:${n == 3 ? 1 : 2}8080/app-core")
     }
     ant.replace(file: appPropFile, token: '\\:', value: ':')
 
-    setupLogging(rootDir, n)
+    setupLogging(tomcatDir, n)
+
+    fixFileAttr(tomcatDir)
 }
 
-void setupCoreConfigFiles(String rootDir, int n) {
-    replacePorts(rootDir, n)
+void setupCoreConfigFiles(String tomcatDir, int n) {
+    replacePorts(tomcatDir, n)
 
-    File coreConfDir = new File("${rootDir}/conf/app-core")
+    File coreConfDir = new File("${tomcatDir}/conf/app-core")
     coreConfDir.mkdirs()
     def appPropFile = new File(coreConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
@@ -352,36 +394,41 @@ void setupCoreConfigFiles(String rootDir, int n) {
     }
     ant.replace(file: appPropFile, token: '\\:', value: ':')
 
-    // Remote JMX
-    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
-            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -Djava.rmi.server.hostname=localhost -Dcom.sun.management.jmxremote.port=${n}7777 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false\"")
+    enableRemoteJmx(tomcatDir, n)
 
     // JGroups
     copy {
         from "${rootProject.rootDir}/etc/jgroups_tcp.xml"
-        into "${rootDir}/conf/app-core"
+        into "${tomcatDir}/conf/app-core"
     }
-//    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
-//            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -Djgroups.bind_port=780${n} -Djgroups.tcpping.initial_hosts=localhost[7801],localhost[7802]\"")
 
-    setupLogging(rootDir, n)
+    setupLogging(tomcatDir, n)
+
+    fixFileAttr(tomcatDir)
 }
 
-void replacePorts(String rootDir, int n) {
-    ant.replace(file: "${rootDir}/conf/server.xml", token: '8005', value: "${n}8005")
-    ant.replace(file: "${rootDir}/conf/server.xml", token: '8009', value: "${n}8009")
-    ant.replace(file: "${rootDir}/conf/server.xml", token: '8080', value: "${n}8080")
-    ant.replace(file: "${rootDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
-    ant.replace(file: "${rootDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
+void replacePorts(String tomcatDir, int n) {
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8005', value: "${n}8005")
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8009', value: "${n}8009")
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8080', value: "${n}8080")
+    ant.replace(file: "${tomcatDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
+    ant.replace(file: "${tomcatDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
 }
 
-def setupLogging(String rootDir, int n) {
+def setupLogging(String tomcatDir, int n) {
     copy {
         from "${rootProject.rootDir}/etc/logback.xml"
-        into "${rootDir}/conf"
+        into "${tomcatDir}/conf"
     }
-    ant.echo(file: "${rootDir}/bin/setenv.sh", append: true, message:
+    ant.echo(file: "${tomcatDir}/bin/setenv.sh", append: true, message:
             "\nCATALINA_OPTS=\"\$CATALINA_OPTS -DcubaBlock=b${n}\"")
+}
 
-    ant.chmod(file: "${rootDir}/bin/setenv.sh", perm: 'a+x')
+def enableRemoteJmx(String tomcatDir, int n) {
+    ant.echo(file: "${tomcatDir}/bin/setenv.sh", append: true, message:
+            "\nCATALINA_OPTS=\"\$CATALINA_OPTS -Djava.rmi.server.hostname=localhost -Dcom.sun.management.jmxremote.port=${n == 0 ? '' : n}7777 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false\"")
+}
+
+def fixFileAttr(String tomcatDir) {
+    ant.chmod(file: "${tomcatDir}/bin/setenv.sh", perm: 'a+x')
 }
