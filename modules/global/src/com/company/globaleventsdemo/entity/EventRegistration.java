@@ -39,7 +39,7 @@ public class EventRegistration extends BaseUuidEntity implements Creatable {
         setEventClass(event.getClass().getName());
         setEventPayload(event.toString());
         setReceiver(receiever.getClass().getName());
-        setReceivedAt(globalConfig.getWebPort() + ":" + globalConfig.getWebContextName());
+        setReceivedAt(globalConfig.getWebPort() + "/" + globalConfig.getWebContextName());
     }
 
     public void setReceiver(String receiver) {
