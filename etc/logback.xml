@@ -33,6 +33,9 @@
         <appender-ref ref="File"/>
     </root>
 
+    <!-- global events -->
+    <logger name="com.haulmont.addon.globalevents.core.WebSocketDispatcherServlet" level="INFO"/>
+
     <!-- Begin CUBA -->
 
     <logger name="com.haulmont.cuba" level="DEBUG"/>

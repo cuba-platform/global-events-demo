@@ -23,6 +23,7 @@ def modulePrefix = 'app'
 def globalModule = project(":${modulePrefix}-global")
 def coreModule = project(":${modulePrefix}-core")
 def webModule = project(":${modulePrefix}-web")
+def portalModule = project(":${modulePrefix}-portal")
 
 def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
 
@@ -52,7 +53,7 @@ dependencies {
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
 
-configure([globalModule, coreModule, webModule]) {
+configure([globalModule, coreModule, webModule, portalModule]) {
     apply(plugin: 'java')
     apply(plugin: 'maven')
     apply(plugin: 'idea')
@@ -178,13 +179,68 @@ configure(webModule) {
     }
 }
 
+configure(portalModule) {
+    dependencies {
+        provided(servletApi)
+        compile(globalModule)
+        
+    }
+
+    def webappName = "${modulePrefix}-portal"
+    def resourcesDir = "$cuba.tomcat.dir/webapps/$webappName/resources"
+    def ftlDir = "$cuba.tomcat.dir/webapps/$webappName/WEB-INF/templates"
+
+    task deploy(dependsOn: assemble, type: CubaDeployment) {
+        appName = webappName
+        appJars(modulePrefix + '-global', modulePrefix + '-portal')
+    }
+
+    task deployStatic() {
+        doLast {
+            copy {
+                from file('web/resources')
+                include '**/*.css'
+                include '**/*.js'
+                include '**/*.png'
+                include '**/*.gif'
+                include '**/*.jpg'
+                into resourcesDir
+            }
+            copy {
+                from file('web/WEB-INF/templates')
+                include '**/*.ftl'
+                into ftlDir
+            }
+        }
+    }
+
+    task cleanStatic() {
+        doLast {
+            delete resourcesDir
+            delete ftlDir
+        }
+    }
+
+    task webArchive(type: Zip) {
+        from file('web')
+        from file("$buildDir/web")
+        exclude '**/web.xml', '**/app.properties'
+        classifier = 'web'
+    }
+
+    artifacts {
+        archives webArchive
+    }
+}
+
 task undeploy(type: Delete, dependsOn: ":${modulePrefix}-web:cleanConf") {
     delete("$cuba.tomcat.dir/shared")
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}-core")
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}")
+    delete("$cuba.tomcat.dir/webapps/${modulePrefix}-portal")
 }
 
-task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefix}-web:deploy"], description: 'Redeploys applications and restarts local Tomcat') {
+task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefix}-web:deploy", ":${modulePrefix}-portal:deploy"], description: 'Redeploys applications and restarts local Tomcat') {
     doLast {
         ant.waitfor(maxwait: 6, maxwaitunit: 'second', checkevery: 2, checkeveryunit: 'second') {
             not {
@@ -245,30 +301,36 @@ def tomcat2Dir = cuba.tomcat.dir + '2'
 def tomcat3Dir = cuba.tomcat.dir + '3'
 def tomcat4Dir = cuba.tomcat.dir + '4'
 def tomcat5Dir = cuba.tomcat.dir + '5'
+def tomcat6Dir = cuba.tomcat.dir + '6'
 
 task dropTomcat1(type: CubaDropTomcat) {
     tomcatRootDir = tomcat1Dir
-    listeningPort = 18787
+    listeningPort = 8781
 }
 
 task dropTomcat2(type: CubaDropTomcat) {
     tomcatRootDir = tomcat2Dir
-    listeningPort = 28787
+    listeningPort = 8782
 }
 
 task dropTomcat3(type: CubaDropTomcat) {
     tomcatRootDir = tomcat3Dir
-    listeningPort = 38787
+    listeningPort = 8783
 }
 
 task dropTomcat4(type: CubaDropTomcat) {
     tomcatRootDir = tomcat4Dir
-    listeningPort = 48787
+    listeningPort = 8784
 }
 
 task dropTomcat5(type: CubaDropTomcat) {
     tomcatRootDir = tomcat5Dir
-    listeningPort = 58787
+    listeningPort = 8785
+}
+
+task dropTomcat6(type: CubaDropTomcat) {
+    tomcatRootDir = tomcat6Dir
+    listeningPort = 8786
 }
 
 task setupTomcat1(dependsOn: dropTomcat1, type: CubaSetupTomcat) {
@@ -291,6 +353,10 @@ task setupTomcat5(dependsOn: dropTomcat5, type: CubaSetupTomcat) {
     tomcatRootDir = tomcat5Dir
 }
 
+task setupTomcat6(dependsOn: dropTomcat6, type: CubaSetupTomcat) {
+    tomcatRootDir = tomcat6Dir
+}
+
 task startTomcat1(type: CubaStartTomcat) {
     tomcatRootDir = tomcat1Dir
 }
@@ -311,7 +377,11 @@ task startTomcat5(type: CubaStartTomcat) {
     tomcatRootDir = tomcat5Dir
 }
 
-task startCluster(dependsOn: [startTomcat1, startTomcat2, startTomcat3, startTomcat4, startTomcat5])
+task startTomcat6(type: CubaStartTomcat) {
+    tomcatRootDir = tomcat6Dir
+}
+
+task startCluster(dependsOn: [startTomcat1, startTomcat2, startTomcat3, startTomcat4, startTomcat5, startTomcat6])
 
 configure(coreModule) {
     task deploy1(dependsOn: [assemble, cleanConf, setupTomcat1], type: CubaDeployment) {
@@ -344,30 +414,41 @@ configure(webModule) {
     }
 }
 
+configure(portalModule) {
+    task deploy6(dependsOn: [assemble, setupTomcat6], type: CubaDeployment) {
+        tomcatRootDir = tomcat6Dir
+        appName = "${modulePrefix}-portal"
+        appJars(modulePrefix + '-global', modulePrefix + '-portal')
+    }
+}
+
 task prepareCluster(dependsOn: [globalModule.assemble, coreModule.assemble, webModule.assemble,
-                                coreModule.deploy1, coreModule.deploy2, webModule.deploy3, webModule.deploy4, webModule.deploy5]) {
+                                coreModule.deploy1, coreModule.deploy2,
+                                webModule.deploy3, webModule.deploy4, webModule.deploy5,
+                                portalModule.deploy6]) {
     doLast {
         setupCoreConfigFiles(tomcat1Dir, 1)
         setupCoreConfigFiles(tomcat2Dir, 2)
-        setupWebConfigFiles(tomcat3Dir, 3)
-        setupWebConfigFiles(tomcat4Dir, 4)
-        setupWebConfigFiles(tomcat5Dir, 5)
+        setupClientConfigFiles(tomcat3Dir, 3, 'app')
+        setupClientConfigFiles(tomcat4Dir, 4, 'app')
+        setupClientConfigFiles(tomcat5Dir, 5, 'app')
+        setupClientConfigFiles(tomcat6Dir, 6, 'app-portal')
 
         delete("$rootDir/deploy/logs")
     }
 }
 
-void setupWebConfigFiles(String tomcatDir, int n) {
+void setupClientConfigFiles(String tomcatDir, int n, String appName) {
     replacePorts(tomcatDir, n)
 
-    File webConfDir = new File("${tomcatDir}/conf/app")
+    File webConfDir = new File("${tomcatDir}/conf/${appName}")
     webConfDir.mkdirs()
     def appPropFile = new File(webConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
-        entry(key: 'cuba.webPort', value: "${n}8080")
+        entry(key: 'cuba.webPort', value: "808${n}")
         entry(key: 'cuba.useLocalServiceInvocation', value: 'false')
-        // web3 -> core1, web4 & web5 -> core2
-        entry(key: 'cuba.connectionUrlList', value: "http://localhost:${n == 3 ? 1 : 2}8080/app-core")
+        // web3, portal6 -> core1, web4 & web5 -> core2
+        entry(key: 'cuba.connectionUrlList', value: "http://localhost:808${(n == 3 || n == 6) ? 1 : 2}/app-core")
     }
     ant.replace(file: appPropFile, token: '\\:', value: ':')
 
@@ -382,7 +463,7 @@ void setupCoreConfigFiles(String tomcatDir, int n) {
     coreConfDir.mkdirs()
     def appPropFile = new File(coreConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
-        entry(key: 'cuba.webPort', value: "${n}8080")
+        entry(key: 'cuba.webPort', value: "808${n}")
         entry(key: 'cuba.cluster.enabled', value: 'true')
 
         entry(key: 'cuba.cluster.jgroupsConfig', value: 'jgroups_tcp.xml')
@@ -403,11 +484,11 @@ void setupCoreConfigFiles(String tomcatDir, int n) {
 }
 
 void replacePorts(String tomcatDir, int n) {
-    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8005', value: "${n}8005")
-    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8009', value: "${n}8009")
-    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8080', value: "${n}8080")
-    ant.replace(file: "${tomcatDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
-    ant.replace(file: "${tomcatDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8005', value: "805${n}")
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8009', value: "809${n}")
+    ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8080', value: "808${n}")
+//    ant.replace(file: "${tomcatDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
+//    ant.replace(file: "${tomcatDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
 }
 
 def copyLogbackConfig(String tomcatDir, int n) {
@@ -422,7 +503,7 @@ def copySetEnv(String tomcatDir, int n) {
         from "${rootProject.rootDir}/etc/setenv.sh"
         into "${tomcatDir}/bin"
         filter { line ->
-            line.replace('{n}', n == 0 ? '' : String.valueOf(n))
+            line.replace('{n}', String.valueOf(n))
         }
     }
     ant.chmod(file: "${tomcatDir}/bin/setenv.sh", perm: 'a+x')

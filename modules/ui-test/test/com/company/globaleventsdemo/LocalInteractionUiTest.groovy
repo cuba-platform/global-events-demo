@@ -60,7 +60,7 @@ class LocalInteractionUiTest {
 
             // Send event from core
             CoreTester coreTester = Connectors.jmx(CoreTester,
-                    new Connectors.JmxHost(null, null, "localhost:7777"))
+                    new Connectors.JmxHost(null, null, "localhost:7770"))
             coreTester.sendUiNotificationEvent('test')
 
             // Check count is 2 in the first browser
@@ -83,16 +83,20 @@ class LocalInteractionUiTest {
     void testBeanEvent() {
         // Send event from core
         CoreTester coreTester = Connectors.jmx(CoreTester,
-                new Connectors.JmxHost(null, null, "localhost:7777"))
+                new Connectors.JmxHost(null, null, "localhost:7770"))
         coreTester.sendBeanNotificationEvent()
 
         Thread.sleep(500)
 
         Sql sql = getSql()
         List rows = sql.rows('select * from GLEVTDEMO_EVENT_REGISTRATION')
-        assertEquals(2, rows.size())
-        assertTrue(rows.every { it.event_class == 'com.company.globaleventsdemo.BeanNotificationEvent' })
+        rows.each {
+            println(it)
+        }
         assertEquals(1, rows.findAll { it.receiver == 'com.company.globaleventsdemo.core.FooCoreBean' }.size())
         assertEquals(1, rows.findAll { it.receiver == 'com.company.globaleventsdemo.web.FooWebBean' }.size())
+        assertEquals(1, rows.findAll { it.receiver == 'com.company.globaleventsdemo.portal.FooPortalBean' }.size())
+        assertTrue(rows.every { it.event_class == 'com.company.globaleventsdemo.BeanNotificationEvent' })
+        assertEquals(3, rows.size())
     }
 }

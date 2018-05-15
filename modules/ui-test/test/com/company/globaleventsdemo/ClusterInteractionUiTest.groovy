@@ -37,7 +37,7 @@ class ClusterInteractionUiTest {
             // browser3
             // login, open screen and check count is 0
             WebDriverRunner.setWebDriver(wd3)
-            open("http://localhost:38080/app")
+            open("http://localhost:8083/app")
             wire(LoginWindow).login()
             Screen1 screen_wd3 = openScreen()
             screen_wd3.with {
@@ -47,7 +47,7 @@ class ClusterInteractionUiTest {
             // browser4
             // login, open screen and check count is 0
             WebDriverRunner.setWebDriver(wd4)
-            open("http://localhost:48080/app")
+            open("http://localhost:8084/app")
             wire(LoginWindow).login()
             Screen1 screen_wd4 = openScreen()
             screen_wd4.with {
@@ -57,7 +57,7 @@ class ClusterInteractionUiTest {
             // browser5
             // login, open screen, check count is 0 and click "Send"
             WebDriverRunner.setWebDriver(wd5)
-            open('http://localhost:58080/app')
+            open('http://localhost:8085/app')
             wire(LoginWindow).login()
             Screen1 screen_wd5 = openScreen()
             screen_wd5.with {
@@ -82,7 +82,7 @@ class ClusterInteractionUiTest {
 
             // Send event from core
             CoreTester coreTester = Connectors.jmx(CoreTester,
-                    new Connectors.JmxHost(null, null, "localhost:17777"))
+                    new Connectors.JmxHost(null, null, "localhost:7771"))
             coreTester.sendUiNotificationEvent('test')
 
             // browser3
@@ -121,13 +121,13 @@ class ClusterInteractionUiTest {
         try {
             // browser3
             WebDriverRunner.setWebDriver(wd3)
-            open("http://localhost:38080/app")
+            open("http://localhost:8083/app")
             // browser4
             WebDriverRunner.setWebDriver(wd4)
-            open("http://localhost:48080/app")
+            open("http://localhost:8084/app")
             // browser5
             WebDriverRunner.setWebDriver(wd5)
-            open("http://localhost:58080/app")
+            open("http://localhost:8085/app")
         } finally {
             wd3.quit()
             wd4.quit()
@@ -136,7 +136,7 @@ class ClusterInteractionUiTest {
 
         // Send event from core
         CoreTester coreTester = Connectors.jmx(CoreTester,
-                new Connectors.JmxHost(null, null, "localhost:17777"))
+                new Connectors.JmxHost(null, null, "localhost:7771"))
         coreTester.sendBeanNotificationEvent()
 
         Thread.sleep(500)
@@ -146,9 +146,10 @@ class ClusterInteractionUiTest {
         rows.each {
             println(it)
         }
-        assertTrue(rows.every { it.event_class == 'com.company.globaleventsdemo.BeanNotificationEvent' })
         assertEquals(2, rows.findAll { it.receiver == 'com.company.globaleventsdemo.core.FooCoreBean' }.size())
         assertEquals(3, rows.findAll { it.receiver == 'com.company.globaleventsdemo.web.FooWebBean' }.size())
-        assertEquals(5, rows.size())
+        assertEquals(1, rows.findAll { it.receiver == 'com.company.globaleventsdemo.portal.FooPortalBean' }.size())
+        assertTrue(rows.every { it.event_class == 'com.company.globaleventsdemo.BeanNotificationEvent' })
+        assertEquals(6, rows.size())
     }
 }
