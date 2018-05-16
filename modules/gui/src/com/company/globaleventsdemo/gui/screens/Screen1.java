@@ -1,4 +1,4 @@
-package com.company.globaleventsdemo.web.screens;
+package com.company.globaleventsdemo.gui.screens;
 
 import com.company.globaleventsdemo.BeanNotificationEvent;
 import com.company.globaleventsdemo.UiNotificationEvent;

@@ -24,6 +24,8 @@ def globalModule = project(":${modulePrefix}-global")
 def coreModule = project(":${modulePrefix}-core")
 def webModule = project(":${modulePrefix}-web")
 def portalModule = project(":${modulePrefix}-portal")
+def desktopModule = project(":${modulePrefix}-desktop")
+def guiModule = project(":${modulePrefix}-gui")
 
 def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
 
@@ -53,7 +55,7 @@ dependencies {
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
 
-configure([globalModule, coreModule, webModule, portalModule]) {
+configure([globalModule, coreModule, webModule, portalModule, desktopModule, guiModule]) {
     apply(plugin: 'java')
     apply(plugin: 'maven')
     apply(plugin: 'idea')
@@ -129,6 +131,20 @@ configure(coreModule) {
         dbPassword = 'cuba'
     }
 }
+
+
+configure(guiModule) {
+    dependencies {
+        compile(globalModule)
+        
+    }
+
+    task deployConf(type: Copy) {
+        from file('src')
+        include "com/company/globaleventsdemo/**"
+        into "$cuba.tomcat.dir/conf/${modulePrefix}"
+    }
+}
     
 configure(webModule) {
     configurations {
@@ -137,8 +153,7 @@ configure(webModule) {
 
     dependencies {
         provided(servletApi)
-        compile(globalModule)
-
+        compile(guiModule)
     }
     
     task webArchive(type: Zip) {
@@ -175,7 +190,42 @@ configure(webModule) {
 
     task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
         appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-web')
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
+    }
+}
+
+configure(desktopModule) {
+    apply(plugin: 'application')
+    mainClassName = 'com.company.globaleventsdemo.desktop.App'
+
+    dependencies {
+        compile(guiModule)
+        
+    }
+    assemble.dependsOn = [ classes ]
+
+    jar {
+        manifest {
+            attributes("Permissions": "all-permissions")
+        }
+    }
+
+    installDist {
+        into("${projectDir}/../../deploy/" + applicationName)
+    }
+
+    task deploy(dependsOn: installDist)
+
+    task createWebStart(dependsOn: [assemble, jar], type: CubaWebStartCreation) {
+        signJarsKeystore = "${projectDir}/webstart/sign-jars-keystore.jks"
+        signJarsAlias = 'signJars'
+        signJarsPassword = 'HaulmontSignJars'
+        indexFileName = "${projectDir}/webstart/index.html"
+        basePath = "${modulePrefix}-webstart"
+    }
+
+    task deployWebStart(dependsOn: createWebStart, type: CubaWebStartDeployment) {
+        basePath = "${modulePrefix}-webstart"
     }
 }
 
@@ -238,6 +288,7 @@ task undeploy(type: Delete, dependsOn: ":${modulePrefix}-web:cleanConf") {
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}-core")
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}")
     delete("$cuba.tomcat.dir/webapps/${modulePrefix}-portal")
+    delete("$cuba.tomcat.dir/webapps/${modulePrefix}-webstart")
 }
 
 task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefix}-web:deploy", ":${modulePrefix}-portal:deploy"], description: 'Redeploys applications and restarts local Tomcat') {
@@ -400,17 +451,17 @@ configure(webModule) {
     task deploy3(dependsOn: [assemble, cleanConf, setupTomcat3], type: CubaDeployment) {
         tomcatRootDir = tomcat3Dir
         appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-web')
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
     }
     task deploy4(dependsOn: [assemble, cleanConf, setupTomcat4], type: CubaDeployment) {
         tomcatRootDir = tomcat4Dir
         appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-web')
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
     }
     task deploy5(dependsOn: [assemble, cleanConf, setupTomcat5], type: CubaDeployment) {
         tomcatRootDir = tomcat5Dir
         appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-web')
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
     }
 }
 
