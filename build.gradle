@@ -26,6 +26,7 @@ def webModule = project(":${modulePrefix}-web")
 def portalModule = project(":${modulePrefix}-portal")
 def desktopModule = project(":${modulePrefix}-desktop")
 def guiModule = project(":${modulePrefix}-gui")
+def systestModule = project(":${modulePrefix}-systest")
 
 def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
 
@@ -306,7 +307,7 @@ task wrapper(type: Wrapper) {
     gradleVersion = '4.3.1'
 }
 
-configure(project(":${modulePrefix}-ui-test")) {
+configure(systestModule) {
 
     apply(plugin: 'java')
     apply(plugin: 'groovy')
@@ -330,22 +331,29 @@ configure(project(":${modulePrefix}-ui-test")) {
         testRuntime(postgres)
     }
 
-    task localTest(type: Test, dependsOn: testClasses) {
-        include('**/LocalInteractionUiTest.class')
+    task testLocal(type: Test, dependsOn: testClasses) {
+        include('**/LocalSystemTest.class')
         if (System.getProperty('webdriver.chrome.driver')) {
             systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
         }
     }
 
-    task clusterTest(type: Test, dependsOn: testClasses) {
-        include('**/ClusterInteractionUiTest.class')
+    task testCluster(type: Test, dependsOn: testClasses) {
+        include('**/ClusterSystemTest.class')
+        if (System.getProperty('webdriver.chrome.driver')) {
+            systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
+        }
+    }
+
+    task testDesktop(type: Test, dependsOn: testClasses) {
+        include('**/DesktopClientSystemTest.class')
         if (System.getProperty('webdriver.chrome.driver')) {
             systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
         }
     }
 }
 
-/* ============= Cluster setup =============== */
+/* ============= System test setup =============== */
 
 def tomcat1Dir = cuba.tomcat.dir + '1'
 def tomcat2Dir = cuba.tomcat.dir + '2'
@@ -353,141 +361,6 @@ def tomcat3Dir = cuba.tomcat.dir + '3'
 def tomcat4Dir = cuba.tomcat.dir + '4'
 def tomcat5Dir = cuba.tomcat.dir + '5'
 def tomcat6Dir = cuba.tomcat.dir + '6'
-
-task dropTomcat1(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat1Dir
-    listeningPort = 8781
-}
-
-task dropTomcat2(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat2Dir
-    listeningPort = 8782
-}
-
-task dropTomcat3(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat3Dir
-    listeningPort = 8783
-}
-
-task dropTomcat4(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat4Dir
-    listeningPort = 8784
-}
-
-task dropTomcat5(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat5Dir
-    listeningPort = 8785
-}
-
-task dropTomcat6(type: CubaDropTomcat) {
-    tomcatRootDir = tomcat6Dir
-    listeningPort = 8786
-}
-
-task setupTomcat1(dependsOn: dropTomcat1, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat1Dir
-}
-
-task setupTomcat2(dependsOn: dropTomcat2, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat2Dir
-}
-
-task setupTomcat3(dependsOn: dropTomcat3, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat3Dir
-}
-
-task setupTomcat4(dependsOn: dropTomcat4, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat4Dir
-}
-
-task setupTomcat5(dependsOn: dropTomcat5, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat5Dir
-}
-
-task setupTomcat6(dependsOn: dropTomcat6, type: CubaSetupTomcat) {
-    tomcatRootDir = tomcat6Dir
-}
-
-task startTomcat1(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat1Dir
-}
-
-task startTomcat2(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat2Dir
-}
-
-task startTomcat3(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat3Dir
-}
-
-task startTomcat4(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat4Dir
-}
-
-task startTomcat5(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat5Dir
-}
-
-task startTomcat6(type: CubaStartTomcat) {
-    tomcatRootDir = tomcat6Dir
-}
-
-task startCluster(dependsOn: [startTomcat1, startTomcat2, startTomcat3, startTomcat4, startTomcat5, startTomcat6])
-
-configure(coreModule) {
-    task deploy1(dependsOn: [assemble, cleanConf, setupTomcat1], type: CubaDeployment) {
-        tomcatRootDir = tomcat1Dir
-        appName = "${modulePrefix}-core"
-        appJars(modulePrefix + '-global', modulePrefix + '-core')
-    }
-    task deploy2(dependsOn: [assemble, cleanConf, setupTomcat2], type: CubaDeployment) {
-        tomcatRootDir = tomcat2Dir
-        appName = "${modulePrefix}-core"
-        appJars(modulePrefix + '-global', modulePrefix + '-core')
-    }
-}
-
-configure(webModule) {
-    task deploy3(dependsOn: [assemble, cleanConf, setupTomcat3], type: CubaDeployment) {
-        tomcatRootDir = tomcat3Dir
-        appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
-    }
-    task deploy4(dependsOn: [assemble, cleanConf, setupTomcat4], type: CubaDeployment) {
-        tomcatRootDir = tomcat4Dir
-        appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
-    }
-    task deploy5(dependsOn: [assemble, cleanConf, setupTomcat5], type: CubaDeployment) {
-        tomcatRootDir = tomcat5Dir
-        appName = "${modulePrefix}"
-        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
-    }
-}
-
-configure(portalModule) {
-    task deploy6(dependsOn: [assemble, setupTomcat6], type: CubaDeployment) {
-        tomcatRootDir = tomcat6Dir
-        appName = "${modulePrefix}-portal"
-        appJars(modulePrefix + '-global', modulePrefix + '-portal')
-    }
-}
-
-task prepareCluster(dependsOn: [globalModule.assemble, coreModule.assemble, webModule.assemble,
-                                coreModule.deploy1, coreModule.deploy2,
-                                webModule.deploy3, webModule.deploy4, webModule.deploy5,
-                                portalModule.deploy6]) {
-    doLast {
-        setupCoreConfigFiles(tomcat1Dir, 1)
-        setupCoreConfigFiles(tomcat2Dir, 2)
-        setupClientConfigFiles(tomcat3Dir, 3, 'app')
-        setupClientConfigFiles(tomcat4Dir, 4, 'app')
-        setupClientConfigFiles(tomcat5Dir, 5, 'app')
-        setupClientConfigFiles(tomcat6Dir, 6, 'app-portal')
-
-        delete("$rootDir/deploy/logs")
-    }
-}
 
 void setupClientConfigFiles(String tomcatDir, int n, String appName) {
     replacePorts(tomcatDir, n)
@@ -538,8 +411,6 @@ void replacePorts(String tomcatDir, int n) {
     ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8005', value: "805${n}")
     ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8009', value: "809${n}")
     ant.replace(file: "${tomcatDir}/conf/server.xml", token: '8080', value: "808${n}")
-//    ant.replace(file: "${tomcatDir}/bin/setenv.sh", token: '8787', value: "${n}8787")
-//    ant.replace(file: "${tomcatDir}/bin/setenv.bat", token: '8787', value: "${n}8787")
 }
 
 def copyLogbackConfig(String tomcatDir, int n) {
@@ -559,3 +430,138 @@ def copySetEnv(String tomcatDir, int n) {
     }
     ant.chmod(file: "${tomcatDir}/bin/setenv.sh", perm: 'a+x')
 }
+
+task dropTomcat1(type: CubaDropTomcat) { tomcatRootDir = tomcat1Dir; listeningPort = 8781 }
+task dropTomcat2(type: CubaDropTomcat) { tomcatRootDir = tomcat2Dir; listeningPort = 8782 }
+task dropTomcat3(type: CubaDropTomcat) { tomcatRootDir = tomcat3Dir; listeningPort = 8783 }
+task dropTomcat4(type: CubaDropTomcat) { tomcatRootDir = tomcat4Dir; listeningPort = 8784 }
+task dropTomcat5(type: CubaDropTomcat) { tomcatRootDir = tomcat5Dir; listeningPort = 8785 }
+task dropTomcat6(type: CubaDropTomcat) { tomcatRootDir = tomcat6Dir; listeningPort = 8786 }
+
+task setupTomcat1(dependsOn: dropTomcat1, type: CubaSetupTomcat) { tomcatRootDir = tomcat1Dir }
+task setupTomcat2(dependsOn: dropTomcat2, type: CubaSetupTomcat) { tomcatRootDir = tomcat2Dir }
+task setupTomcat3(dependsOn: dropTomcat3, type: CubaSetupTomcat) { tomcatRootDir = tomcat3Dir }
+task setupTomcat4(dependsOn: dropTomcat4, type: CubaSetupTomcat) { tomcatRootDir = tomcat4Dir }
+task setupTomcat5(dependsOn: dropTomcat5, type: CubaSetupTomcat) { tomcatRootDir = tomcat5Dir }
+task setupTomcat6(dependsOn: dropTomcat6, type: CubaSetupTomcat) { tomcatRootDir = tomcat6Dir }
+
+configure(coreModule) {
+    task deploy1(dependsOn: [assemble, cleanConf, setupTomcat1], type: CubaDeployment) {
+        tomcatRootDir = tomcat1Dir
+        appName = "${modulePrefix}-core"
+        appJars(modulePrefix + '-global', modulePrefix + '-core')
+    }
+    task deploy2(dependsOn: [assemble, cleanConf, setupTomcat2], type: CubaDeployment) {
+        tomcatRootDir = tomcat2Dir
+        appName = "${modulePrefix}-core"
+        appJars(modulePrefix + '-global', modulePrefix + '-core')
+    }
+}
+
+configure(webModule) {
+    task deploy3(dependsOn: [assemble, cleanConf, setupTomcat3], type: CubaDeployment) {
+        tomcatRootDir = tomcat3Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
+    }
+    task deploy4(dependsOn: [assemble, cleanConf, setupTomcat4], type: CubaDeployment) {
+        tomcatRootDir = tomcat4Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
+    }
+    task deploy5(dependsOn: [assemble, cleanConf, setupTomcat5], type: CubaDeployment) {
+        tomcatRootDir = tomcat5Dir
+        appName = "${modulePrefix}"
+        appJars(modulePrefix + '-global', modulePrefix + '-gui', modulePrefix + '-web')
+    }
+}
+
+configure(portalModule) {
+    task deploy6(dependsOn: [assemble, setupTomcat6], type: CubaDeployment) {
+        tomcatRootDir = tomcat6Dir
+        appName = "${modulePrefix}-portal"
+        appJars(modulePrefix + '-global', modulePrefix + '-portal')
+    }
+}
+
+task setupClusterEnv(dependsOn: [globalModule.assemble, coreModule.assemble, webModule.assemble,
+                                coreModule.deploy1, coreModule.deploy2,
+                                webModule.deploy3, webModule.deploy4, webModule.deploy5,
+                                portalModule.deploy6]) {
+    doLast {
+        setupCoreConfigFiles(tomcat1Dir, 1)
+        setupCoreConfigFiles(tomcat2Dir, 2)
+        setupClientConfigFiles(tomcat3Dir, 3, 'app')
+        setupClientConfigFiles(tomcat4Dir, 4, 'app')
+        setupClientConfigFiles(tomcat5Dir, 5, 'app')
+        setupClientConfigFiles(tomcat6Dir, 6, 'app-portal')
+
+        delete("$rootDir/deploy/logs")
+    }
+}
+
+task startTomcat1(type: CubaStartTomcat) { tomcatRootDir = tomcat1Dir }
+task startTomcat2(type: CubaStartTomcat) { tomcatRootDir = tomcat2Dir }
+task startTomcat3(type: CubaStartTomcat) { tomcatRootDir = tomcat3Dir }
+task startTomcat4(type: CubaStartTomcat) { tomcatRootDir = tomcat4Dir }
+task startTomcat5(type: CubaStartTomcat) { tomcatRootDir = tomcat5Dir }
+task startTomcat6(type: CubaStartTomcat) { tomcatRootDir = tomcat6Dir }
+
+task stopTomcat(type: CubaStopTomcat) { tomcatRootDir = cuba.tomcat.dir }
+task stopTomcat1(type: CubaStopTomcat) { tomcatRootDir = tomcat1Dir }
+task stopTomcat2(type: CubaStopTomcat) { tomcatRootDir = tomcat2Dir }
+task stopTomcat3(type: CubaStopTomcat) { tomcatRootDir = tomcat3Dir }
+task stopTomcat4(type: CubaStopTomcat) { tomcatRootDir = tomcat4Dir }
+task stopTomcat5(type: CubaStopTomcat) { tomcatRootDir = tomcat5Dir }
+task stopTomcat6(type: CubaStopTomcat) { tomcatRootDir = tomcat6Dir }
+
+task startClusterEnv(dependsOn: [startTomcat1, startTomcat2, startTomcat3, startTomcat4, startTomcat5, startTomcat6])
+
+task stopClusterEnv(dependsOn: [stopTomcat1, stopTomcat2, stopTomcat3, stopTomcat4, stopTomcat5, stopTomcat6])
+
+task startDesktop(dependsOn: [desktopModule.assemble]) {
+    doLast {
+        ant.java(classname: desktopModule.mainClassName, fork: true, spawn: true) {
+            classpath {
+                pathElement(path: desktopModule.sourceSets.main.runtimeClasspath.asPath)
+            }
+            sysProperty(key: 'glevtdemo.autoTest', value: 'true')
+        }
+    }
+}
+
+task stopDesktop() {
+    doLast {
+        ant.exec(osfamily: 'unix', executable: '/bin/sh') {
+            arg(value: '-c')
+            arg(value: 'kill $(jps -l | grep "com.company.globaleventsdemo.desktop.App" | cut -f 1 -d " ")')
+        }
+    }
+}
+
+task stopAll(dependsOn: [stopClusterEnv, stopDesktop, stopTomcat])
+
+task startLocalEnv(dependsOn: [setupTomcat, coreModule.deploy, webModule.deploy, portalModule.deploy, start])
+
+startDesktop.mustRunAfter startLocalEnv
+startClusterEnv.mustRunAfter setupClusterEnv
+
+systestModule.testLocal.mustRunAfter startLocalEnv
+systestModule.testDesktop.mustRunAfter systestModule.testLocal
+systestModule.testCluster.mustRunAfter([startClusterEnv, systestModule.testDesktop])
+
+stopAll.mustRunAfter([systestModule.testLocal, systestModule.testDesktop, systestModule.testCluster])
+
+task runSystemTest(dependsOn: [
+        //
+        startLocalEnv,
+        systestModule.testLocal,
+        //
+        startDesktop,
+        systestModule.testDesktop,
+        //
+        setupClusterEnv, startClusterEnv,
+        systestModule.testCluster,
+        //
+        stopAll
+        ])

@@ -8,4 +8,6 @@ public interface CoreTester {
     String sendUiNotificationEvent(String message);
 
     String sendBeanNotificationEvent();
+
+    String sendCloseDesktopClientEvent();
 }

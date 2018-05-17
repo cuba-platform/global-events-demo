@@ -1,6 +1,7 @@
 package com.company.globaleventsdemo.desktop;
 
 import com.company.globaleventsdemo.BeanNotificationEvent;
+import com.company.globaleventsdemo.CloseDesktopClientEvent;
 import com.company.globaleventsdemo.entity.EventRegistration;
 import com.haulmont.cuba.core.global.DataManager;
 import com.haulmont.cuba.core.global.GlobalConfig;
@@ -39,6 +40,15 @@ public class FooDesktopBean {
             });
         } else {
             log.info("Not connected");
+        }
+    }
+
+    @EventListener
+    public void onCloseDesktopClientEvent(CloseDesktopClientEvent event) {
+        log.info("Received {}", event);
+        if (App.isAutoTest()) {
+            App.getInstance().getConnection().logout();
+            System.exit(0);
         }
     }
 }

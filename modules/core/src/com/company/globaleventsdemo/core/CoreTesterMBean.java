@@ -5,4 +5,6 @@ public interface CoreTesterMBean {
     String sendUiNotificationEvent(String message);
 
     String sendBeanNotificationEvent();
+
+    String sendCloseDesktopClientEvent();
 }

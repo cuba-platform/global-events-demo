@@ -1,6 +1,7 @@
 package com.company.globaleventsdemo.core;
 
 import com.company.globaleventsdemo.BeanNotificationEvent;
+import com.company.globaleventsdemo.CloseDesktopClientEvent;
 import com.company.globaleventsdemo.UiNotificationEvent;
 import com.google.common.base.Strings;
 import com.haulmont.cuba.core.global.Events;
@@ -23,6 +24,12 @@ public class CoreTester implements CoreTesterMBean {
     @Override
     public String sendBeanNotificationEvent() {
         events.publish(new BeanNotificationEvent(this));
+        return "done";
+    }
+
+    @Override
+    public String sendCloseDesktopClientEvent() {
+        events.publish(new CloseDesktopClientEvent(this));
         return "done";
     }
 }

@@ -1,6 +1,11 @@
 package com.company.globaleventsdemo.desktop;
 
+import com.haulmont.cuba.core.global.AppBeans;
+import com.haulmont.cuba.core.global.PasswordEncryption;
+import com.haulmont.cuba.security.global.LoginException;
+
 import javax.swing.*;
+import java.util.Locale;
 
 public class App extends com.haulmont.cuba.desktop.App {
 
@@ -10,7 +15,16 @@ public class App extends com.haulmont.cuba.desktop.App {
                 app = new App();
                 app.init(args);
                 app.show();
-                app.showLoginDialog();
+                if (isAutoTest()) {
+                    try {
+                        PasswordEncryption passwordEncryption = AppBeans.get(PasswordEncryption.NAME);
+                        app.getConnection().login("admin", passwordEncryption.getPlainHash("admin"), Locale.ENGLISH);
+                    } catch (LoginException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    app.showLoginDialog();
+                }
             }
         });
     }
@@ -33,5 +47,9 @@ public class App extends com.haulmont.cuba.desktop.App {
     @Override
     protected String getDefaultLogConfig() {
         return "desktop-logback.xml";
+    }
+
+    public static boolean isAutoTest() {
+        return Boolean.valueOf(System.getProperty("glevtdemo.autoTest"));
     }
 }
