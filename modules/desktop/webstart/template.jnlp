@@ -7,14 +7,14 @@
 
     <information>
         <title>global-events-demo desktop application</title>
-        <vendor>com.company.globaleventsdemo</vendor>
+        <vendor>com.haulmont.globaleventsdemo</vendor>
 <!--         <homepage href="http://www.haulmont.com"/> -->
         <description>global-events-demo desktop application</description>
         <description kind="short">global-events-demo desktop application</description>
         <offline-allowed/>
     </information>
 
-    <application-desc main-class="com.company.globaleventsdemo.desktop.App">
+    <application-desc main-class="com.haulmont.globaleventsdemo.desktop.App">
         <argument>cuba.connectionUrlList=http://localhost:8080/app-core</argument>
     </application-desc>
 

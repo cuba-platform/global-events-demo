@@ -36,7 +36,7 @@ apply(plugin: 'cuba')
 
 cuba {
     artifact {
-        group = 'com.company.globaleventsdemo'
+        group = 'com.haulmont.globaleventsdemo'
         version = '0.1'
         isSnapshot = true
     }
@@ -50,8 +50,7 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.1-SNAPSHOT")
-
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.1.1")
 }
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
@@ -142,7 +141,7 @@ configure(guiModule) {
 
     task deployConf(type: Copy) {
         from file('src')
-        include "com/company/globaleventsdemo/**"
+        include "com/haulmont/globaleventsdemo/**"
         into "$cuba.tomcat.dir/conf/${modulePrefix}"
     }
 }
@@ -169,7 +168,7 @@ configure(webModule) {
 
     task deployConf(type: Copy) {
         from file('src')
-        include "com/company/globaleventsdemo/**"
+        include "com/haulmont/globaleventsdemo/**"
         into "$cuba.tomcat.dir/conf/${modulePrefix}"
     }
 
@@ -197,7 +196,7 @@ configure(webModule) {
 
 configure(desktopModule) {
     apply(plugin: 'application')
-    mainClassName = 'com.company.globaleventsdemo.desktop.App'
+    mainClassName = 'com.haulmont.globaleventsdemo.desktop.App'
 
     dependencies {
         compile(guiModule)
@@ -534,7 +533,7 @@ task stopDesktop() {
     doLast {
         ant.exec(osfamily: 'unix', executable: '/bin/sh') {
             arg(value: '-c')
-            arg(value: 'kill $(jps -l | grep "com.company.globaleventsdemo.desktop.App" | cut -f 1 -d " ")')
+            arg(value: 'kill $(jps -l | grep "com.haulmont.globaleventsdemo.desktop.App" | cut -f 1 -d " ")')
         }
     }
 }
@@ -542,26 +541,3 @@ task stopDesktop() {
 task stopAll(dependsOn: [stopClusterEnv, stopDesktop, stopTomcat])
 
 task startLocalEnv(dependsOn: [setupTomcat, coreModule.deploy, webModule.deploy, portalModule.deploy, start])
-
-startDesktop.mustRunAfter startLocalEnv
-startClusterEnv.mustRunAfter setupClusterEnv
-
-systestModule.testLocal.mustRunAfter startLocalEnv
-systestModule.testDesktop.mustRunAfter systestModule.testLocal
-systestModule.testCluster.mustRunAfter([startClusterEnv, systestModule.testDesktop])
-
-stopAll.mustRunAfter([systestModule.testLocal, systestModule.testDesktop, systestModule.testCluster])
-
-task runSystemTest(dependsOn: [
-        //
-        startLocalEnv,
-        systestModule.testLocal,
-        //
-        startDesktop,
-        systestModule.testDesktop,
-        //
-        setupClusterEnv, startClusterEnv,
-        systestModule.testCluster,
-        //
-        stopAll
-        ])
