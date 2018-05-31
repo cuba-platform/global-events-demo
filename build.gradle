@@ -1,6 +1,6 @@
 
 buildscript {
-    ext.cubaVersion = '6.8.7'
+    ext.cubaVersion = '6.9.0'
     repositories {
         
         mavenLocal()
@@ -28,7 +28,7 @@ def desktopModule = project(":${modulePrefix}-desktop")
 def guiModule = project(":${modulePrefix}-gui")
 def systestModule = project(":${modulePrefix}-systest")
 
-def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
+def servletApi = 'javax.servlet:javax.servlet-api:3.1.0'
 
 
 apply(plugin: 'idea')
@@ -50,7 +50,7 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.1.1")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.2.0")
 }
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
