@@ -50,7 +50,7 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.2.0")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.2.1")
 }
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
