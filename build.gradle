@@ -1,6 +1,6 @@
 
 buildscript {
-    ext.cubaVersion = '6.9.0'
+    ext.cubaVersion = '6.10.0'
     repositories {
         
         mavenLocal()
@@ -50,7 +50,7 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.2.1")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.3.0")
 }
 
 def postgres = 'org.postgresql:postgresql:9.4.1212'
@@ -76,7 +76,9 @@ configure([globalModule, coreModule, webModule, portalModule, desktopModule, gui
 }
 
 configure(globalModule) {
-    task enhance(type: CubaEnhancing)
+    entitiesEnhancing {
+        main { enabled = true }
+    }
 
     
 }
