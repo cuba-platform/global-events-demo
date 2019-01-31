@@ -23,13 +23,13 @@ sleep 10
 ./gradlew testLocal ${wd_path_prop}
 exitIfError $?
 
-echo ">>> Testing desktop client"
-./gradlew startDesktop
-sleep 10
-./gradlew testDesktop ${wd_path_prop}
-status=$?
-./gradlew stopDesktop stopTomcat
-exitIfError ${status}
+#echo ">>> Testing desktop client"
+#./gradlew startDesktop
+#sleep 10
+#./gradlew testDesktop ${wd_path_prop}
+#status=$?
+#./gradlew stopDesktop stopTomcat
+#exitIfError ${status}
 
 echo ">>> Testing cluster"
 ./gradlew setupClusterEnv startClusterEnv

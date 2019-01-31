@@ -29,16 +29,6 @@ First, create local PostgreSQL database which will be used by all configurations
 
 * Invoke `sendBeanNotificationEvent` operation, then open _Entity Inspector_ for the _Event Registration_ entity and make sure there are three instances with _Receiver_ fields indicating that the event was received by beans of all three blocks: `core`, `web` and `portal`.            
 
-### Desktop Client
-
-* Start Tomcat as described above.
-
-* Start desktop client from IntelliJ or using the `startDesktop` Gradle task. In the latter case, the client will automatically connect to the middleware with the `admin/admin` credentials.
-
-* Send events from the same screen and watch the number of received events in the desktop client and the browsers.
-
-* Invoke the `sendBeanNotificationEvent` JMX operation and make sure there is a record of _Event Registration_ with the _Receiver_ field showing a bean from the `desktop` block. 
-
 ### Cluster
 
 * Start cluster of six Tomcat servers and wait for all servers to load:

@@ -1,6 +1,6 @@
 
 buildscript {
-    ext.cubaVersion = '6.10.0'
+    ext.cubaVersion = '7.0.0'
     repositories {
         
         mavenLocal()
@@ -24,14 +24,12 @@ def globalModule = project(":${modulePrefix}-global")
 def coreModule = project(":${modulePrefix}-core")
 def webModule = project(":${modulePrefix}-web")
 def portalModule = project(":${modulePrefix}-portal")
-def desktopModule = project(":${modulePrefix}-desktop")
 def guiModule = project(":${modulePrefix}-gui")
 def systestModule = project(":${modulePrefix}-systest")
 
 def servletApi = 'javax.servlet:javax.servlet-api:3.1.0'
 
 
-apply(plugin: 'idea')
 apply(plugin: 'cuba')
 
 cuba {
@@ -50,15 +48,14 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.3.0")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.4.0")
 }
 
-def postgres = 'org.postgresql:postgresql:9.4.1212'
+def postgres = 'org.postgresql:postgresql:42.2.4'
 
-configure([globalModule, coreModule, webModule, portalModule, desktopModule, guiModule]) {
+configure([globalModule, coreModule, webModule, portalModule, guiModule]) {
     apply(plugin: 'java')
     apply(plugin: 'maven')
-    apply(plugin: 'idea')
     apply(plugin: 'cuba')
 
     dependencies {
@@ -76,6 +73,12 @@ configure([globalModule, coreModule, webModule, portalModule, desktopModule, gui
 }
 
 configure(globalModule) {
+    dependencies {
+        if (!JavaVersion.current().isJava8()) {
+            runtime('javax.xml.bind:jaxb-api:2.3.1')
+            runtime('org.glassfish.jaxb:jaxb-runtime:2.3.1')
+        }
+    }
     entitiesEnhancing {
         main { enabled = true }
     }
@@ -92,7 +95,7 @@ configure(coreModule) {
 
     dependencies {
         compile(globalModule)
-        provided(servletApi)
+        compileOnly(servletApi)
         jdbc(postgres)
         testRuntime(postgres)
 
@@ -154,7 +157,7 @@ configure(webModule) {
     }
 
     dependencies {
-        provided(servletApi)
+        compileOnly(servletApi)
         compile(guiModule)
     }
     
@@ -196,44 +199,9 @@ configure(webModule) {
     }
 }
 
-configure(desktopModule) {
-    apply(plugin: 'application')
-    mainClassName = 'com.haulmont.globaleventsdemo.desktop.App'
-
-    dependencies {
-        compile(guiModule)
-        
-    }
-    assemble.dependsOn = [ classes ]
-
-    jar {
-        manifest {
-            attributes("Permissions": "all-permissions")
-        }
-    }
-
-    installDist {
-        into("${projectDir}/../../deploy/" + applicationName)
-    }
-
-    task deploy(dependsOn: installDist)
-
-    task createWebStart(dependsOn: [assemble, jar], type: CubaWebStartCreation) {
-        signJarsKeystore = "${projectDir}/webstart/sign-jars-keystore.jks"
-        signJarsAlias = 'signJars'
-        signJarsPassword = 'HaulmontSignJars'
-        indexFileName = "${projectDir}/webstart/index.html"
-        basePath = "${modulePrefix}-webstart"
-    }
-
-    task deployWebStart(dependsOn: createWebStart, type: CubaWebStartDeployment) {
-        basePath = "${modulePrefix}-webstart"
-    }
-}
-
 configure(portalModule) {
     dependencies {
-        provided(servletApi)
+        compileOnly(servletApi)
         compile(globalModule)
         
     }
@@ -304,15 +272,11 @@ task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefi
     }
 }
 
-task wrapper(type: Wrapper) {
-    gradleVersion = '4.3.1'
-}
 
 configure(systestModule) {
 
     apply(plugin: 'java')
     apply(plugin: 'groovy')
-    apply(plugin: 'idea')
     apply(plugin: 'cuba')
 
     sourceSets {
@@ -341,13 +305,6 @@ configure(systestModule) {
 
     task testCluster(type: Test, dependsOn: testClasses) {
         include('**/ClusterSystemTest.class')
-        if (System.getProperty('webdriver.chrome.driver')) {
-            systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
-        }
-    }
-
-    task testDesktop(type: Test, dependsOn: testClasses) {
-        include('**/DesktopClientSystemTest.class')
         if (System.getProperty('webdriver.chrome.driver')) {
             systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
         }
@@ -520,26 +477,6 @@ task startClusterEnv(dependsOn: [startTomcat1, startTomcat2, startTomcat3, start
 
 task stopClusterEnv(dependsOn: [stopTomcat1, stopTomcat2, stopTomcat3, stopTomcat4, stopTomcat5, stopTomcat6])
 
-task startDesktop(dependsOn: [desktopModule.assemble]) {
-    doLast {
-        ant.java(classname: desktopModule.mainClassName, fork: true, spawn: true) {
-            classpath {
-                pathElement(path: desktopModule.sourceSets.main.runtimeClasspath.asPath)
-            }
-            sysProperty(key: 'glevtdemo.autoTest', value: 'true')
-        }
-    }
-}
-
-task stopDesktop() {
-    doLast {
-        ant.exec(osfamily: 'unix', executable: '/bin/sh') {
-            arg(value: '-c')
-            arg(value: 'kill $(jps -l | grep "com.haulmont.globaleventsdemo.desktop.App" | cut -f 1 -d " ")')
-        }
-    }
-}
-
-task stopAll(dependsOn: [stopClusterEnv, stopDesktop, stopTomcat])
+task stopAll(dependsOn: [stopClusterEnv, stopTomcat])
 
 task startLocalEnv(dependsOn: [setupTomcat, coreModule.deploy, webModule.deploy, portalModule.deploy, start])
