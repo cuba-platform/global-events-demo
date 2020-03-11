@@ -1,6 +1,6 @@
 
 buildscript {
-    ext.cubaVersion = '7.1.0'
+    ext.cubaVersion = '7.2-SNAPSHOT'
     repositories {
         
         mavenLocal()
@@ -48,7 +48,7 @@ cuba {
 
 dependencies {
     appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
-    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.5.1")
+    appComponent("com.haulmont.addon.globalevents:cubaglevt-global:0.6-SNAPSHOT")
 }
 
 def postgres = 'org.postgresql:postgresql:42.2.4'
@@ -101,15 +101,8 @@ configure(coreModule) {
 
     }
 
-    task cleanConf(description: 'Cleans up conf directory') {
-        doLast {
-            def dir = new File(cuba.tomcat.dir, "/conf/${modulePrefix}-core")
-            if (dir.isDirectory()) {
-                ant.delete(includeemptydirs: true) {
-                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
-                }
-            }
-        }
+    task cleanConf(description: 'Cleans up conf directory', type: Delete) {
+        delete "$cuba.appHome/${modulePrefix}-core/conf"
     }
 
     task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
@@ -147,7 +140,7 @@ configure(guiModule) {
     task deployConf(type: Copy) {
         from file('src')
         include "com/haulmont/globaleventsdemo/**"
-        into "$cuba.tomcat.dir/conf/${modulePrefix}"
+        into "$cuba.appHome/${modulePrefix}/conf"
     }
 }
     
@@ -174,7 +167,7 @@ configure(webModule) {
     task deployConf(type: Copy) {
         from file('src')
         include "com/haulmont/globaleventsdemo/**"
-        into "$cuba.tomcat.dir/conf/${modulePrefix}"
+        into "$cuba.appHome/${modulePrefix}/conf"
     }
 
     task clearMessagesCache(type: CubaClearMessagesCache) {
@@ -182,15 +175,8 @@ configure(webModule) {
     }
     deployConf.dependsOn clearMessagesCache
 
-    task cleanConf(description: 'Cleans up conf directory') {
-        doLast {
-            def dir = new File(cuba.tomcat.dir, "/conf/${modulePrefix}")
-            if (dir.isDirectory()) {
-                ant.delete(includeemptydirs: true) {
-                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
-                }
-            }
-        }
+    task cleanConf(description: 'Cleans up conf directory', type: Delete) {
+        delete "$cuba.appHome/${modulePrefix}/conf"
     }
 
     task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
@@ -268,9 +254,9 @@ task restart(dependsOn: ['stop', ":${modulePrefix}-core:deploy", ":${modulePrefi
                 socket(server: 'localhost', port: '8787')
             }
         }
-        start.execute()
     }
 }
+restart.finalizedBy start
 
 
 configure(systestModule) {
@@ -280,12 +266,21 @@ configure(systestModule) {
     apply(plugin: 'cuba')
 
     sourceSets {
+        main {
+            groovy { srcDirs = ["src"] }
+            // new config
+            java.outputDir = new File(project.buildDir, "classes/main")
+            groovy.outputDir = new File(project.buildDir, "classes/main")
+        }
         test {
-            groovy {
-                srcDirs = ['test']
-            }
+            groovy { srcDirs = ["test"] }
+            // new config
+            java.outputDir = new File(project.buildDir, "classes/test")
+            groovy.outputDir = new File(project.buildDir, "classes/test")
         }
     }
+            sourceSets.main.output.classesDirs.setFrom(new File(project.buildDir, "classes/main"))
+            sourceSets.test.output.classesDirs.setFrom(new File(project.buildDir, "classes/test"))
 
     dependencies {
         testCompile('junit:junit:4.12')
@@ -323,7 +318,7 @@ def tomcat6Dir = cuba.tomcat.dir + '6'
 void setupClientConfigFiles(String tomcatDir, int n, String appName) {
     replacePorts(tomcatDir, n)
 
-    File webConfDir = new File("${tomcatDir}/conf/${appName}")
+    File webConfDir = new File("${tomcatDir}/work/app_home")
     webConfDir.mkdirs()
     def appPropFile = new File(webConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
@@ -341,7 +336,7 @@ void setupClientConfigFiles(String tomcatDir, int n, String appName) {
 void setupCoreConfigFiles(String tomcatDir, int n) {
     replacePorts(tomcatDir, n)
 
-    File coreConfDir = new File("${tomcatDir}/conf/app-core")
+    File coreConfDir = new File("${tomcatDir}/work/app_home")
     coreConfDir.mkdirs()
     def appPropFile = new File(coreConfDir, 'local.app.properties').getAbsolutePath()
     ant.propertyfile(file: appPropFile) {
@@ -374,7 +369,7 @@ void replacePorts(String tomcatDir, int n) {
 def copyLogbackConfig(String tomcatDir, int n) {
     copy {
         from "${rootProject.rootDir}/etc/logback.xml"
-        into "${tomcatDir}/conf"
+        into "${tomcatDir}/work/app_home"
     }
 }
 

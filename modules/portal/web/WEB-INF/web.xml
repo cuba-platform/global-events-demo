@@ -7,10 +7,10 @@
     <context-param>
         <param-name>appPropertiesConfig</param-name>
         <param-value>
-            
+
             classpath:com/haulmont/globaleventsdemo/portal-app.properties
             /WEB-INF/local.app.properties
-            "file:${catalina.base}/conf/app-portal/local.app.properties"
+            "file:${app.home}/local.app.properties"
         </param-value>
     </context-param>
     <!--Application components-->
